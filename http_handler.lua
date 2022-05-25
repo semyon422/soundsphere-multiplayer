@@ -1,10 +1,12 @@
 local url = require("socket.url")
 local parse_query = require("parse_query")
 
-local ok200 = ([[HTTP/1.1 200 OK
-Content-Length: 0
-
-]]):gsub("\n", "\r\n")
+local ok200 = table.concat({
+	"HTTP/1.1 200 OK",
+	"Content-Length: 0",
+	"",
+	"",
+}, "\r\n")
 
 return function(server)
 	local client, err = server:accept()
@@ -21,7 +23,6 @@ return function(server)
 	local method, path = line:match("^(%S+)%s+(%S+)%s+")
 
 	local headers = {}
-	local line
 	repeat
 		line = client:receive("*l")
 		if line then

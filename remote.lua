@@ -43,7 +43,10 @@ local peer_mt = {
 	end,
 }
 remote.peer = function(peer)
-	return setmetatable({peer = peer}, peer_mt)
+	return setmetatable({
+		peer = peer,
+		id = tostring(peer),
+	}, peer_mt)
 end
 
 local handle = remote.wrap(function(peer, e)
