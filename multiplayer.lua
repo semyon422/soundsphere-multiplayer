@@ -60,6 +60,7 @@ function multiplayer.login(params)
 	local user = {
 		id = params.user_id,
 		name = params.user_name,
+		isReady = false,
 	}
 	peerUsers[peer.id] = user
 	table.insert(users, user)
@@ -95,6 +96,11 @@ handlers.login = function(peer)
 	return key
 end
 
+handlers.switchReady = function(peer)
+	local user = peerUsers[peer.id]
+	user.isReady = not user.isReady
+end
+
 local roomIdCounter = 0
 handlers.createRoom = function(peer, name, password)
 	if peerRooms[peer.id] then
@@ -105,6 +111,8 @@ handlers.createRoom = function(peer, name, password)
 	local room = {
 		id = roomIdCounter,
 		name = name,
+		hostUser = peerUsers[peer.id],
+		isFreeModifiers = false,
 		users = {
 			peerUsers[peer.id],
 		},
@@ -148,6 +156,14 @@ handlers.leaveRoom = function(peer)
 		roomPasswords[room.id] = nil
 	end
 	return true
+end
+
+handlers.setFreeModifiers = function(peer, isFreeModifiers)
+	local room = peerRooms[peer.id]
+	if not room then
+		return
+	end
+	room.isFreeModifiers = isFreeModifiers
 end
 
 return multiplayer
