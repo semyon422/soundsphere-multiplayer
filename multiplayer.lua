@@ -4,6 +4,8 @@ local multiplayer = {
 local handlers = multiplayer.handlers
 
 local rooms = {}
+local roomPasswords = {}
+
 local users = {}
 
 local peers = {}
@@ -103,7 +105,6 @@ handlers.createRoom = function(peer, name, password)
 	local room = {
 		id = roomIdCounter,
 		name = name,
-		password = password,
 		users = {
 			peerUsers[peer.id],
 		},
@@ -111,6 +112,8 @@ handlers.createRoom = function(peer, name, password)
 	peerRooms[peer.id] = room
 	roomById[roomIdCounter] = room
 	table.insert(rooms, room)
+
+	roomPasswords[room.id] = password
 
 	return room
 end
@@ -121,7 +124,7 @@ handlers.joinRoom = function(peer, roomId, password)
 		return
 	end
 
-	if room.password ~= password then
+	if roomPasswords[room.id] ~= password then
 		return
 	end
 
@@ -142,6 +145,7 @@ handlers.leaveRoom = function(peer)
 	if #room.users == 0 then
 		delete(rooms, room)
 		roomById[room.id] = nil
+		roomPasswords[room.id] = nil
 	end
 	return true
 end
