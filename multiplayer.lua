@@ -1,6 +1,7 @@
 local multiplayer = {
 	handlers = {},
 }
+local handlers = multiplayer.handlers
 
 local rooms = {}
 local users = {}
@@ -9,6 +10,21 @@ local peers = {}
 local peerIdByKey = {}
 local peerKeyById = {}
 local peerUsers = {}
+local peerRooms = {}
+
+local roomById = {}
+
+local function delete(t, v)
+	if not v then
+		return
+	end
+	for i, value in ipairs(t) do
+		if value == v then
+			table.remove(t, i)
+			break
+		end
+	end
+end
 
 function multiplayer.peerconnected(peer)
 	print("peerconnected", peer.id)
@@ -20,20 +36,16 @@ function multiplayer.peerdisconnected(peer)
 	local id = peer.id
 	print("peerdisconnected", id)
 
-	peers[id] = nil
-	peerIdByKey[peerKeyById[id]] = nil
-	peerKeyById[id] = nil
+	handlers.leaveRoom(peer)
 
-	local user = peerUsers[id]
-	if not user then
-		return
+	peers[id] = nil
+	if peerKeyById[id] then
+		peerIdByKey[peerKeyById[id]] = nil
+		peerKeyById[id] = nil
 	end
-	for i, u in ipairs(users) do
-		if u == user then
-			table.remove(users, i)
-			break
-		end
-	end
+
+	delete(users, peerUsers[id])
+	peerUsers[id] = nil
 end
 
 -- http handlers
@@ -53,15 +65,6 @@ end
 
 -- remote handlers
 
-local handlers = multiplayer.handlers
-
-handlers.login = function(peer)
-	local key = tostring(math.random(1000000, 9999999))
-	peerIdByKey[key] = peer.id
-	peerKeyById[peer.id] = key
-	return key
-end
-
 handlers.getRooms = function(peer)
 	return rooms
 end
@@ -71,19 +74,76 @@ handlers.getUsers = function(peer)
 end
 
 handlers.getUser = function(peer)
-	local id = peer.id
-	local user = peerUsers[id]
-	if not user then
-		return
-	end
-	return user or {name = "guest"}
+	return peerUsers[peer.id]
 end
 
+handlers.getRoom = function(peer)
+	return peerRooms[peer.id]
+end
+
+handlers.login = function(peer)
+	if peerUsers[peer.id] then
+		return
+	end
+
+	local key = tostring(math.random(1000000, 9999999))
+	peerIdByKey[key] = peer.id
+	peerKeyById[peer.id] = key
+
+	return key
+end
+
+local roomIdCounter = 0
 handlers.createRoom = function(peer, name, password)
-	table.insert(rooms, {
+	if peerRooms[peer.id] then
+		return
+	end
+
+	roomIdCounter = roomIdCounter + 1
+	local room = {
+		id = roomIdCounter,
 		name = name,
 		password = password,
-	})
+		users = {
+			peerUsers[peer.id],
+		},
+	}
+	peerRooms[peer.id] = room
+	roomById[roomIdCounter] = room
+	table.insert(rooms, room)
+
+	return room
+end
+
+handlers.joinRoom = function(peer, roomId, password)
+	local room = roomById[roomId]
+	if not room or peerRooms[peer.id] then
+		return
+	end
+
+	if room.password ~= password then
+		return
+	end
+
+	peerRooms[peer.id] = room
+	table.insert(room.users, peerUsers[peer.id])
+
+	return room
+end
+
+handlers.leaveRoom = function(peer)
+	local room = peerRooms[peer.id]
+	if not room then
+		return
+	end
+	delete(room.users, peerUsers[peer.id])
+	peerRooms[peer.id] = nil
+
+	if #room.users == 0 then
+		delete(rooms, room)
+		roomById[room.id] = nil
+	end
+	return true
 end
 
 return multiplayer
