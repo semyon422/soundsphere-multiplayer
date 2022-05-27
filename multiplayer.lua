@@ -10,7 +10,6 @@ local users = {}
 
 local peers = {}
 local peerIdByKey = {}
-local peerKeyById = {}
 local peerUsers = {}
 local peerRooms = {}
 
@@ -40,14 +39,9 @@ function multiplayer.peerdisconnected(peer)
 
 	handlers.leaveRoom(peer)
 
-	peers[id] = nil
-	if peerKeyById[id] then
-		peerIdByKey[peerKeyById[id]] = nil
-		peerKeyById[id] = nil
-	end
-
 	delete(users, peerUsers[id])
 	peerUsers[id] = nil
+	peers[id] = nil
 end
 
 -- http handlers
@@ -57,6 +51,8 @@ function multiplayer.login(params)
 	if not peer then
 		return
 	end
+	peerIdByKey[params.key] = nil
+
 	local user = {
 		id = params.user_id,
 		name = params.user_name,
@@ -64,25 +60,19 @@ function multiplayer.login(params)
 	}
 	peerUsers[peer.id] = user
 	table.insert(users, user)
+	peer._set("user", user)
+
+	for _, p in pairs(peers) do
+		p._set("users", users)
+	end
 end
 
 -- remote handlers
 
-handlers.getRooms = function(peer)
-	return rooms
-end
-
-handlers.getUsers = function(peer)
-	return users
-end
-
-handlers.getUser = function(peer)
-	return peerUsers[peer.id]
-end
-
-handlers.getRoom = function(peer)
-	return peerRooms[peer.id]
-end
+handlers.getRooms = function() return rooms end
+handlers.getUsers = function() return users end
+handlers.getUser = function(peer) return peerUsers[peer.id] end
+handlers.getRoom = function(peer) return peerRooms[peer.id] end
 
 handlers.login = function(peer)
 	if peerUsers[peer.id] then
@@ -91,7 +81,6 @@ handlers.login = function(peer)
 
 	local key = tostring(math.random(1000000, 9999999))
 	peerIdByKey[key] = peer.id
-	peerKeyById[peer.id] = key
 
 	return key
 end
@@ -122,6 +111,10 @@ handlers.createRoom = function(peer, name, password)
 	table.insert(rooms, room)
 
 	roomPasswords[room.id] = password
+
+	for _, p in pairs(peers) do
+		p._set("rooms", rooms)
+	end
 
 	return room
 end
@@ -154,6 +147,10 @@ handlers.leaveRoom = function(peer)
 		delete(rooms, room)
 		roomById[room.id] = nil
 		roomPasswords[room.id] = nil
+
+		for _, p in pairs(peers) do
+			p._set("rooms", rooms)
+		end
 	end
 	return true
 end
