@@ -10,10 +10,9 @@ local host = enet.host_create("*:9000")
 
 -- web server
 local server = assert(socket.tcp())
-assert(server:bind("127.0.0.1", 9001))
+assert(server:bind("*", 9001))
 assert(server:listen(32))
-server:setoption("reuseaddr", true)
-server:settimeout(0)
+assert(server:settimeout(0))
 
 while true do
 	local event = host:service(0)
