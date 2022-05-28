@@ -1,10 +1,12 @@
 local enet = require("enet")
 local socket = require("socket")
 local remote = require("remote")
+local MessagePack = require("MessagePack")
 local multiplayer = require("multiplayer")
 local http_handler = require("http_handler")
 
-remote.handlers = multiplayer.handlers
+remote.encode = MessagePack.pack
+remote.decode = MessagePack.unpack
 
 -- enet host
 local host = enet.host_create("*:9000")
@@ -23,7 +25,7 @@ while true do
 		elseif event.type == "disconnect" then
 			multiplayer.peerdisconnected(remote.peer(event.peer))
 		elseif event.type == "receive" then
-			remote.receive(event)
+			remote.receive(event, multiplayer.handlers)
 		end
 	end
 
