@@ -2,6 +2,7 @@ local enet = require("enet")
 local socket = require("socket")
 local remote = require("remote")
 local multiplayer = require("multiplayer")
+local http_handler = require("http_handler")
 
 remote.handlers = multiplayer.handlers
 
@@ -26,17 +27,9 @@ while true do
 		end
 	end
 
-	local http_handler = loadfile("http_handler.lua")
-	if http_handler then
-		http_handler = http_handler()
-		-- local method, path, content = webserver.accept()
-		local res = http_handler(server)
-		if res then
-			print(require("inspect")(res))
-			if res.method == "POST" and res.path == "/login" then
-				multiplayer.login(res.params)
-			end
-		end
+	local res = http_handler(server)
+	if res and res.method == "POST" and res.path == "/login" then
+		multiplayer.login(res.params)
 	end
 
 	socket.sleep(0.1)
