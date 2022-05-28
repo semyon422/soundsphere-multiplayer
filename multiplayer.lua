@@ -1,3 +1,5 @@
+local util = require("util")
+
 local multiplayer = {
 	handlers = {},
 }
@@ -7,6 +9,7 @@ local rooms = {}
 local roomPasswords = {}
 local roomUsers = {}
 local roomPeers = {}
+local roomModifiers = {}
 
 local users = {}
 
@@ -15,25 +18,34 @@ local peerIdByKey = {}
 local peerUsers = {}
 local peerRooms = {}
 
-local function delete(t, v)
-	if not v then
-		return
-	end
-	for i, value in ipairs(t) do
-		if value == v then
-			table.remove(t, i)
-			break
-		end
+local function pushRoom(room)
+	for _, p in pairs(roomPeers[room.id]) do
+		p._set("room", room)
 	end
 end
 
-local function indexof(t, v)
-	for i, value in pairs(t) do
-		if value == v then
-			return i
-		end
+local function pushRoomUsers(room)
+	for _, p in pairs(roomPeers[room.id]) do
+		p._set("roomUsers", roomUsers[room.id])
 	end
-	return nil
+end
+
+local function pushRoomModifiers(room)
+	for _, p in pairs(roomPeers[room.id]) do
+		p._set("modifiers", roomModifiers[room.id])
+	end
+end
+
+local function pushRooms()
+	for _, p in pairs(peers) do
+		p._set("rooms", rooms)
+	end
+end
+
+local function pushUsers()
+	for _, p in pairs(peers) do
+		p._set("users", users)
+	end
 end
 
 function multiplayer.peerconnected(peer)
@@ -48,7 +60,9 @@ function multiplayer.peerdisconnected(peer)
 
 	handlers.leaveRoom(peer)
 
-	delete(users, peerUsers[id])
+	util.delete(users, peerUsers[id])
+	pushUsers()
+
 	peerUsers[id] = nil
 	peers[id] = nil
 end
@@ -64,6 +78,7 @@ function multiplayer.login(params)
 
 	local user = {
 		id = tonumber(params.user_id),
+		peerId = peer.id,
 		name = params.user_name,
 		isReady = false,
 	}
@@ -71,9 +86,8 @@ function multiplayer.login(params)
 	table.insert(users, user)
 
 	peer._set("user", user)
-	for _, p in pairs(peers) do
-		p._set("users", users)
-	end
+	pushUsers()
+	pushRooms()
 end
 
 -- remote handlers
@@ -92,12 +106,6 @@ function handlers.login(peer)
 	peerIdByKey[key] = peer.id
 
 	return key
-end
-
-local function pushRoomUsers(room)
-	for _, p in pairs(roomPeers[room.id]) do
-		p._set("roomUsers", roomUsers[room.id])
-	end
 end
 
 function handlers.switchReady(peer)
@@ -123,7 +131,7 @@ function handlers.createRoom(peer, name, password)
 	local room = {
 		id = roomIdCounter,
 		name = name,
-		hostUser = user,
+		hostPeerId = peer.id,
 		isFreeModifiers = false,
 	}
 	peerRooms[peer.id] = room
@@ -132,17 +140,16 @@ function handlers.createRoom(peer, name, password)
 	roomUsers[room.id] = {user}
 	roomPeers[room.id] = {peer}
 	roomPasswords[room.id] = password
+	roomModifiers[room.id] = {}
 
 	pushRoomUsers(room)
-	for _, p in pairs(peers) do
-		p._set("rooms", rooms)
-	end
+	pushRooms()
 
 	return room
 end
 
 function handlers.joinRoom(peer, roomId, password)
-	local room = indexof(rooms, roomId)
+	local room = rooms[util.indexofid(rooms, roomId)]
 	if not room or peerRooms[peer.id] then
 		return
 	end
@@ -156,6 +163,10 @@ function handlers.joinRoom(peer, roomId, password)
 	table.insert(roomPeers[room.id], peer)
 	pushRoomUsers(room)
 
+	if not room.isFreeModifiers then
+		peer._set("modifiers", roomModifiers[room.id])
+	end
+
 	return room
 end
 
@@ -164,21 +175,27 @@ function handlers.leaveRoom(peer)
 	if not room then
 		return
 	end
-	delete(roomUsers[room.id], peerUsers[peer.id])
-	delete(roomPeers[room.id], peer)
+	util.delete(roomUsers[room.id], peerUsers[peer.id])
+	util.delete(roomPeers[room.id], peer)
 	peerRooms[peer.id] = nil
-	pushRoomUsers(room)
 
 	if #roomUsers[room.id] == 0 then
-		delete(rooms, room)
+		util.delete(rooms, room)
 		roomPasswords[room.id] = nil
 		roomUsers[room.id] = nil
 		roomPeers[room.id] = nil
+		roomModifiers[room.id] = nil
 
-		for _, p in pairs(peers) do
-			p._set("rooms", rooms)
-		end
+		pushRooms()
+		return true
 	end
+
+	if room.hostPeerId == peer.id then
+		room.hostPeerId = roomUsers[room.id][1].peerId
+	end
+	pushRoom(room)
+	pushRoomUsers(room)
+
 	return true
 end
 
@@ -188,6 +205,25 @@ function handlers.setFreeModifiers(peer, isFreeModifiers)
 		return
 	end
 	room.isFreeModifiers = isFreeModifiers
+	pushRoom(room)
+
+	if isFreeModifiers then
+		return
+	end
+	pushRoomModifiers(room)
+end
+
+function handlers.setModifiers(peer, modifiers)
+	local room = peerRooms[peer.id]
+	if not room then
+		return
+	end
+	roomModifiers[room.id] = modifiers
+
+	if room.isFreeModifiers then
+		return
+	end
+	pushRoomModifiers(room)
 end
 
 return multiplayer
