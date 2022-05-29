@@ -10,6 +10,7 @@ local roomPasswords = {}
 local roomUsers = {}
 local roomPeers = {}
 local roomModifiers = {}
+local roomNotecharts = {}
 
 local users = {}
 
@@ -33,6 +34,12 @@ end
 local function pushRoomModifiers(room)
 	for _, p in pairs(roomPeers[room.id]) do
 		p._set("modifiers", roomModifiers[room.id])
+	end
+end
+
+local function pushRoomNotechart(room)
+	for _, p in pairs(roomPeers[room.id]) do
+		p._set("notechart", roomNotecharts[room.id])
 	end
 end
 
@@ -81,6 +88,7 @@ function multiplayer.login(params)
 		peerId = peer.id,
 		name = params.user_name,
 		isReady = false,
+		isNotechartFound = false,
 	}
 	peerUsers[peer.id] = user
 	table.insert(users, user)
@@ -119,6 +127,17 @@ function handlers.switchReady(peer)
 	pushRoomUsers(room)
 end
 
+function handlers.setNotechartFound(peer, value)
+	local room = peerRooms[peer.id]
+	local user = peerUsers[peer.id]
+	if not user or not room then
+		return
+	end
+	user.isNotechartFound = value
+	peer._set("user", user)
+	pushRoomUsers(room)
+end
+
 local roomIdCounter = 0
 function handlers.createRoom(peer, name, password)
 	if peerRooms[peer.id] then
@@ -141,6 +160,7 @@ function handlers.createRoom(peer, name, password)
 	roomPeers[room.id] = {peer}
 	roomPasswords[room.id] = password
 	roomModifiers[room.id] = {}
+	roomNotecharts[room.id] = {}
 
 	pushRoomUsers(room)
 	pushRooms()
@@ -163,6 +183,7 @@ function handlers.joinRoom(peer, roomId, password)
 	table.insert(roomPeers[room.id], peer)
 	pushRoomUsers(room)
 
+	peer._set("notechart", roomNotecharts[room.id])
 	if not room.isFreeModifiers then
 		peer._set("modifiers", roomModifiers[room.id])
 	end
@@ -185,6 +206,7 @@ function handlers.leaveRoom(peer)
 		roomUsers[room.id] = nil
 		roomPeers[room.id] = nil
 		roomModifiers[room.id] = nil
+		roomNotecharts[room.id] = nil
 
 		pushRooms()
 		return true
@@ -224,6 +246,16 @@ function handlers.setModifiers(peer, modifiers)
 		return
 	end
 	pushRoomModifiers(room)
+end
+
+function handlers.setNotechart(peer, notechart)
+	local room = peerRooms[peer.id]
+	if not room then
+		return
+	end
+	roomNotecharts[room.id] = notechart
+
+	pushRoomNotechart(room)
 end
 
 return multiplayer
