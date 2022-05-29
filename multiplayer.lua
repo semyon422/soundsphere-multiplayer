@@ -116,6 +116,16 @@ function handlers.login(peer)
 	return key
 end
 
+function handlers.startMatch(peer)
+	local room = peerRooms[peer.id]
+	if not room then
+		return
+	end
+	for _, p in pairs(roomPeers[room.id]) do
+		p._startMatch()
+	end
+end
+
 function handlers.switchReady(peer)
 	local room = peerRooms[peer.id]
 	if not room then
