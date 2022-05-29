@@ -35,6 +35,8 @@ while true do
 		multiplayer.login(res.params)
 	end
 
+	multiplayer.update()
+
 	socket.sleep(0.01)
 end
 

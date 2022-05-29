@@ -74,6 +74,28 @@ function multiplayer.peerdisconnected(peer)
 	peers[id] = nil
 end
 
+function multiplayer.update()
+	local needPushRooms = false
+	for _, room in pairs(rooms) do
+		local isPlaying = false
+		for _, user in pairs(roomUsers[room.id]) do
+			if user.isPlaying then
+				isPlaying = true
+				break
+			end
+		end
+		if room.isPlaying ~= isPlaying then
+			room.isPlaying = isPlaying
+			needPushRooms = true
+			pushRoom(room)
+		end
+	end
+	if needPushRooms then
+		print("pushRooms")
+		pushRooms()
+	end
+end
+
 -- http handlers
 
 function multiplayer.login(params)
@@ -89,6 +111,7 @@ function multiplayer.login(params)
 		name = params.user_name,
 		isReady = false,
 		isNotechartFound = false,
+		isPlaying = false,
 		score = {},
 	}
 	peerUsers[peer.id] = user
@@ -119,11 +142,21 @@ end
 
 function handlers.startMatch(peer)
 	local room = peerRooms[peer.id]
-	if not room then
+	if not room or room.isPlaying then
 		return
 	end
 	for _, p in pairs(roomPeers[room.id]) do
 		p._startMatch()
+	end
+end
+
+function handlers.stopMatch(peer)
+	local room = peerRooms[peer.id]
+	if not room or not room.isPlaying then
+		return
+	end
+	for _, p in pairs(roomPeers[room.id]) do
+		p._stopMatch()
 	end
 end
 
@@ -149,6 +182,20 @@ function handlers.setNotechartFound(peer, value)
 	pushRoomUsers(room)
 end
 
+function handlers.setIsPlaying(peer, value)
+	local user = peerUsers[peer.id]
+	if not user then
+		return
+	end
+	user.isPlaying = value
+	peer._set("user", user)
+
+	local room = peerRooms[peer.id]
+	if room then
+		pushRoomUsers(room)
+	end
+end
+
 function handlers.setScore(peer, score)
 	local user = peerUsers[peer.id]
 	if not user then
@@ -171,6 +218,7 @@ function handlers.createRoom(peer, name, password)
 		name = name,
 		hostPeerId = peer.id,
 		isFreeModifiers = false,
+		isPlaying = false,
 	}
 	peerRooms[peer.id] = room
 	table.insert(rooms, room)
