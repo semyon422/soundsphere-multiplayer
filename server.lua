@@ -18,8 +18,8 @@ assert(server:listen(32))
 assert(server:settimeout(0))
 
 while true do
-	local event = host:service(0)
-	if event then
+	local event = host:service()
+	while event do
 		if event.type == "connect" then
 			multiplayer.peerconnected(remote.peer(event.peer))
 		elseif event.type == "disconnect" then
@@ -27,6 +27,7 @@ while true do
 		elseif event.type == "receive" then
 			remote.receive(event, multiplayer.handlers)
 		end
+		event = host:service()
 	end
 
 	local res = http_handler(server)
@@ -34,7 +35,7 @@ while true do
 		multiplayer.login(res.params)
 	end
 
-	socket.sleep(0.1)
+	socket.sleep(0.01)
 end
 
 
