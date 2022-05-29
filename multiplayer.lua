@@ -145,6 +145,9 @@ function handlers.startMatch(peer)
 	if not room or room.isPlaying then
 		return
 	end
+	if not room.isFreeModifiers then
+		pushRoomModifiers(room)
+	end
 	for _, p in pairs(roomPeers[room.id]) do
 		p._startMatch()
 	end
