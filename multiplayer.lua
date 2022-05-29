@@ -89,6 +89,7 @@ function multiplayer.login(params)
 		name = params.user_name,
 		isReady = false,
 		isNotechartFound = false,
+		score = {},
 	}
 	peerUsers[peer.id] = user
 	table.insert(users, user)
@@ -146,6 +147,14 @@ function handlers.setNotechartFound(peer, value)
 	user.isNotechartFound = value
 	peer._set("user", user)
 	pushRoomUsers(room)
+end
+
+function handlers.setScore(peer, score)
+	local user = peerUsers[peer.id]
+	if not user then
+		return
+	end
+	user.score = score
 end
 
 local roomIdCounter = 0
@@ -229,6 +238,14 @@ function handlers.leaveRoom(peer)
 	pushRoomUsers(room)
 
 	return true
+end
+
+function handlers.getRoomUsers(peer)
+	local room = peerRooms[peer.id]
+	if not room then
+		return
+	end
+	return roomUsers[room.id]
 end
 
 function handlers.setFreeModifiers(peer, isFreeModifiers)
