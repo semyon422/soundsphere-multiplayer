@@ -8,12 +8,14 @@ local http_handler = require("http_handler")
 remote.encode = MessagePack.pack
 remote.decode = MessagePack.unpack
 
+local config = require("config")
+
 -- enet host
-local host = enet.host_create("*:9000")
+local host = enet.host_create(("%s:%d"):format(config.enet.address, config.enet.port))
 
 -- web server
 local server = assert(socket.tcp())
-assert(server:bind("*", 9001))
+assert(server:bind(config.http.address, config.http.port))
 assert(server:listen(32))
 assert(server:settimeout(0))
 
@@ -31,7 +33,12 @@ while true do
 	end
 
 	local res = http_handler(server)
-	if res and res.method == "POST" and res.path == "/login" then
+	if
+		res and
+		res.method == "POST" and
+		res.path == "/login" and
+		res.params.token == config.http.token
+	then
 		multiplayer.login(res.params)
 	end
 
