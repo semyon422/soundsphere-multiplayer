@@ -409,10 +409,12 @@ function handlers.kickUser(peer, peerId)
 		return
 	end
 
+	local kickedPeer = peers[peerId]
 	util.delete(roomUsers[room.id], peerUsers[peerId])
-	util.delete(roomPeers[room.id], peers[peerId])
+	util.delete(roomPeers[room.id], kickedPeer)
 	peerRooms[peerId] = nil
 
+	kickedPeer._set("room", nil)
 	pushRoomUsers(room)
 end
 
