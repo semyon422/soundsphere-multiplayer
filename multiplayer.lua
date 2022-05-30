@@ -91,7 +91,6 @@ function multiplayer.update()
 		end
 	end
 	if needPushRooms then
-		print("pushRooms")
 		pushRooms()
 	end
 end
