@@ -43,6 +43,12 @@ local function pushRoomNotechart(room)
 	end
 end
 
+local function pushRoomMessage(room, message)
+	for _, p in pairs(roomPeers[room.id]) do
+		p._addMessage(message)
+	end
+end
+
 local function pushRooms()
 	for _, p in pairs(peers) do
 		p._set("rooms", rooms)
@@ -333,6 +339,18 @@ function handlers.setNotechart(peer, notechart)
 	roomNotecharts[room.id] = notechart
 
 	pushRoomNotechart(room)
+end
+
+function handlers.sendMessage(peer, message)
+	local room = peerRooms[peer.id]
+	local user = peerUsers[peer.id]
+	if not room or not user then
+		return
+	end
+
+	message = user.name .. ": " .. tostring(message)
+
+	pushRoomMessage(room, message)
 end
 
 return multiplayer
