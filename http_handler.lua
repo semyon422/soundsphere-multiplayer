@@ -9,6 +9,10 @@ local ok200 = table.concat({
 }, "\r\n")
 
 return function(server)
+	if not server then
+		return
+	end
+
 	local client, err = server:accept()
 	if not client then
 		return

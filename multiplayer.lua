@@ -1,4 +1,5 @@
 local util = require("util")
+local config = require("config")
 
 local multiplayer = {
 	handlers = {},
@@ -31,13 +32,22 @@ local function pushRoomUsers(room)
 	end
 end
 
+local function unreadyRoomUsers(room)
+	for _, p in pairs(roomPeers[room.id]) do
+		peerUsers[p.id].isReady = false
+	end
+	pushRoomUsers(room)
+end
+
 local function pushRoomModifiers(room)
+	unreadyRoomUsers(room)
 	for _, p in pairs(roomPeers[room.id]) do
 		p._set("modifiers", roomModifiers[room.id])
 	end
 end
 
 local function pushRoomNotechart(room)
+	unreadyRoomUsers(room)
 	for _, p in pairs(roomPeers[room.id]) do
 		p._set("notechart", roomNotecharts[room.id])
 	end
@@ -67,6 +77,24 @@ local function isHost(peer)
 		return false
 	end
 	return true
+end
+
+local function addUser(peer, user_id, user_name)
+	local user = {
+		id = user_id,
+		peerId = peer.id,
+		name = user_name,
+		isReady = false,
+		isNotechartFound = false,
+		isPlaying = false,
+		score = {},
+	}
+	peerUsers[peer.id] = user
+	table.insert(users, user)
+
+	peer._set("user", user)
+	pushUsers()
+	pushRooms()
 end
 
 function multiplayer.peerconnected(peer)
@@ -118,21 +146,7 @@ function multiplayer.login(params)
 	end
 	peerIdByKey[params.key] = nil
 
-	local user = {
-		id = tonumber(params.user_id),
-		peerId = peer.id,
-		name = params.user_name,
-		isReady = false,
-		isNotechartFound = false,
-		isPlaying = false,
-		score = {},
-	}
-	peerUsers[peer.id] = user
-	table.insert(users, user)
-
-	peer._set("user", user)
-	pushUsers()
-	pushRooms()
+	addUser(peer, tonumber(params.user_id), params.user_name)
 end
 
 -- remote handlers
@@ -147,10 +161,21 @@ function handlers.login(peer)
 		return
 	end
 
+	if config.offlineMode then
+		return ""
+	end
+
 	local key = tostring(math.random(1000000, 9999999))
 	peerIdByKey[key] = peer.id
 
 	return key
+end
+
+function handlers.loginOffline(peer, user_id, user_name)
+	if not config.offlineMode then
+		return
+	end
+	addUser(peer, user_id, user_name)
 end
 
 function handlers.startMatch(peer)
@@ -158,6 +183,7 @@ function handlers.startMatch(peer)
 	if not room or room.isPlaying or not isHost(peer) then
 		return
 	end
+	unreadyRoomUsers(room)
 	for _, p in pairs(roomPeers[room.id]) do
 		p._startMatch()
 	end

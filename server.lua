@@ -14,10 +14,13 @@ local config = require("config")
 local host = enet.host_create(("%s:%d"):format(config.enet.address, config.enet.port))
 
 -- web server
-local server = assert(socket.tcp())
-assert(server:bind(config.http.address, config.http.port))
-assert(server:listen(32))
-assert(server:settimeout(0))
+local server
+if not config.offlineMode then
+	server = assert(socket.tcp())
+	assert(server:bind(config.http.address, config.http.port))
+	assert(server:listen(32))
+	assert(server:settimeout(0))
+end
 
 while true do
 	local event = host:service()

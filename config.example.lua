@@ -8,4 +8,5 @@ return {
 		port = 9001,
 		token = "",
 	},
+	offlineMode = false,
 }
