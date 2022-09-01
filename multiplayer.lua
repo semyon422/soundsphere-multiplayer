@@ -88,6 +88,8 @@ local function addUser(peer, user_id, user_name)
 		isNotechartFound = false,
 		isPlaying = false,
 		score = {},
+		modifiers = {},
+		notechart = {},
 	}
 	peerUsers[peer.id] = user
 	table.insert(users, user)
@@ -383,8 +385,19 @@ function handlers.setFreeNotechart(peer, isFreeNotechart)
 end
 
 function handlers.setModifiers(peer, modifiers)
+	local user = peerUsers[peer.id]
+	if not user then
+		return
+	end
+	user.modifiers = modifiers
+
 	local room = peerRooms[peer.id]
-	if not room or not isHost(peer) then
+	if not room then
+		return
+	end
+	pushRoomUsers(room)
+
+	if not isHost(peer) then
 		return
 	end
 	roomModifiers[room.id] = modifiers
@@ -396,8 +409,19 @@ function handlers.setModifiers(peer, modifiers)
 end
 
 function handlers.setNotechart(peer, notechart)
+	local user = peerUsers[peer.id]
+	if not user then
+		return
+	end
+	user.notechart = notechart
+
 	local room = peerRooms[peer.id]
-	if not room or not isHost(peer) then
+	if not room then
+		return
+	end
+	pushRoomUsers(room)
+
+	if not isHost(peer) then
 		return
 	end
 	roomNotecharts[room.id] = notechart
