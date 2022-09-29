@@ -1,5 +1,5 @@
 #!/bin/bash
-. ./setpaths
+. ./setenv
 $LUAROCKS install luasocket
 $LUAROCKS install inspect
 $LUAROCKS install enet
