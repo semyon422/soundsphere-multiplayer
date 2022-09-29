@@ -3,4 +3,3 @@
 $LUAROCKS install luasocket
 $LUAROCKS install inspect
 $LUAROCKS install enet
-$LUAROCKS install lua-messagepack

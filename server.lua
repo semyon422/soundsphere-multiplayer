@@ -1,12 +1,12 @@
 local enet = require("enet")
 local socket = require("socket")
 local remote = require("remote")
-local MessagePack = require("MessagePack")
+local buffer = require("string.buffer")
 local multiplayer = require("multiplayer")
 local http_handler = require("http_handler")
 
-remote.encode = MessagePack.pack
-remote.decode = MessagePack.unpack
+remote.encode = buffer.encode
+remote.decode = buffer.decode
 
 local config = require("config")
 
