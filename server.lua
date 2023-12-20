@@ -1,12 +1,17 @@
+local pkg = require("aqua.package")
+pkg.reset()
+pkg.add(".")
+pkg.add("aqua")
+pkg.add("root/share/lua/5.1")
+pkg.addc("root/lib/lua/5.1")
+
 local enet = require("enet")
 local socket = require("socket")
 local remote = require("remote")
-local buffer = require("string.buffer")
 local multiplayer = require("multiplayer")
 local http_handler = require("http_handler")
 
-remote.encode = buffer.encode
-remote.decode = buffer.decode
+remote.set_coder(require("string.buffer"))
 
 local config = require("config")
 
@@ -16,9 +21,10 @@ local host = enet.host_create(("%s:%d"):format(config.enet.address, config.enet.
 -- web server
 local server
 if not config.offlineMode then
-	server = assert(socket.tcp())
+	server = assert(socket.tcp4())
+	assert(server:setoption("reuseaddr", true))
 	assert(server:bind(config.http.address, config.http.port))
-	assert(server:listen(32))
+	assert(server:listen(1024))
 	assert(server:settimeout(0))
 end
 
@@ -30,7 +36,7 @@ while true do
 		elseif event.type == "disconnect" then
 			multiplayer.peerdisconnected(remote.peer(event.peer))
 		elseif event.type == "receive" then
-			remote.receive(event, multiplayer.handlers)
+			remote.receive(event.data, event.peer, multiplayer.handlers)
 		end
 		event = host:service()
 	end
