@@ -146,6 +146,9 @@ function Room:pushMessage(message)
 end
 
 function Room:startMatch()
+	if self.isPlaying then
+		return
+	end
 	self:unreadyUsers()
 	for _, u in pairs(self.users) do
 		u:startMatch()
@@ -153,6 +156,9 @@ function Room:startMatch()
 end
 
 function Room:stopMatch()
+	if not self.isPlaying then
+		return
+	end
 	for _, u in pairs(self.users) do
 		u:stopMatch()
 	end

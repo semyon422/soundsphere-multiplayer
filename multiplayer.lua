@@ -128,49 +128,6 @@ function handlers.loginOffline(peer, user_id, user_name)
 	addUser(peer, user_id, user_name)
 end
 
-function handlers.startMatch(peer)
-	local user = peer_users[peer.id]
-	local room = user.room
-	if not room or room.isPlaying or not user:isHost() then
-		return
-	end
-	room:startMatch()
-end
-
-function handlers.stopMatch(peer)
-	local user = peer_users[peer.id]
-	local room = user.room
-	if not room or not room.isPlaying or not user:isHost() then
-		return
-	end
-	room:stopMatch()
-end
-
-function handlers.switchReady(peer)
-	local user = peer_users[peer.id]
-	local room = user.room
-	if not room then
-		return
-	end
-	user:switchReady()
-end
-
-function handlers.setNotechartFound(peer, value)
-	local user = peer_users[peer.id]
-	if not user then
-		return
-	end
-	user:setNotechartFound(value)
-end
-
-function handlers.setIsPlaying(peer, value)
-	local user = peer_users[peer.id]
-	if not user then
-		return
-	end
-	user:setPlaying(value)
-end
-
 function handlers.setScore(peer, score)
 	local user = peer_users[peer.id]
 	if not user then
@@ -265,44 +222,9 @@ function handlers.getRoomNotechart(peer)
 	return room.notechart
 end
 
-function handlers.setFreeModifiers(peer, isFreeModifiers)
-	local user = peer_users[peer.id]
-	local room = user.room
-	if not room or not user:isHost() then
-		return
-	end
-	room:setFreeModifiers(isFreeModifiers)
-end
-
-function handlers.setFreeNotechart(peer, isFreeNotechart)
-	local user = peer_users[peer.id]
-	local room = user.room
-	if not room or not user:isHost() then
-		return
-	end
-	room:setFreeNotechart(isFreeNotechart)
-end
-
 function handlers.setModifiers(peer, modifiers)
 	handlers.setUserModifiers(peer, modifiers)
 	handlers.setRoomModifiers(peer, modifiers)
-end
-
-function handlers.setUserModifiers(peer, modifiers)
-	local user = peer_users[peer.id]
-	if not user then
-		return
-	end
-	user:setModifiers(modifiers)
-end
-
-function handlers.setRoomModifiers(peer, modifiers)
-	local user = peer_users[peer.id]
-	local room = user.room
-	if not room or not user:isHost() then
-		return
-	end
-	room:setModifiers(modifiers)
 end
 
 function handlers.setNotechart(peer, notechart)
@@ -310,47 +232,36 @@ function handlers.setNotechart(peer, notechart)
 	handlers.setRoomNotechart(peer, notechart)
 end
 
-function handlers.setUserNotechart(peer, notechart)
-	local user = peer_users[peer.id]
-	if not user then
-		return
+local function create_handler(resource, method, rules)
+	return function(peer, ...)
+		local user = peer_users[peer.id]
+		if not user.room then
+			return
+		end
+		if rules.host and not user:isHost() then
+			return
+		end
+		local res = user
+		if resource == "room" then
+			res = user.room
+		end
+		res[method](res, ...)
 	end
-	user:setNotechart(notechart)
 end
 
-function handlers.setRoomNotechart(peer, notechart)
-	local user = peer_users[peer.id]
-	local room = user.room
-	if not room or not user:isHost() then
-		return
-	end
-	room:setNotechart(notechart)
-end
-
-function handlers.setHost(peer, user_id)
-	local user = peer_users[peer.id]
-	local room = user.room
-	if not room or not user:isHost() then
-		return
-	end
-	room:setHost(user_id)
-end
-
-function handlers.kickUser(peer, user_id)
-	local user = peer_users[peer.id]
-	local room = user.room
-	if not room or not user:isHost() or user.id == user_id then
-		return
-	end
-	room:kickUser(user_id)
-end
-
-function handlers.sendMessage(peer, message)
-	local user = peer_users[peer.id]
-	if not user then
-		return
-	end
-	user:sendMessage(message)
-end
+handlers.startMatch = create_handler("user", "startMatch", {host = true})
+handlers.stopMatch = create_handler("user", "stopMatch", {host = true})
+handlers.switchReady = create_handler("user", "switchReady", {})
+handlers.setNotechartFound = create_handler("user", "setNotechartFound", {})
+handlers.setIsPlaying = create_handler("user", "setPlaying", {})
+handlers.setFreeModifiers = create_handler("room", "setFreeModifiers", {host = true})
+handlers.setFreeNotechart = create_handler("room", "setFreeNotechart", {host = true})
+handlers.setUserModifiers = create_handler("user", "setModifiers", {})
+handlers.setRoomModifiers = create_handler("room", "setModifiers", {host = true})
+handlers.setUserNotechart = create_handler("user", "setNotechart", {})
+handlers.setRoomNotechart = create_handler("room", "setNotechart", {host = true})
+handlers.setHost = create_handler("room", "setHost", {host = true})
+handlers.kickUser = create_handler("room", "kickUser", {host = true})
+handlers.sendMessage = create_handler("user", "sendMessage", {})
 
 return multiplayer
