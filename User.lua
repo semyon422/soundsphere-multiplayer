@@ -31,8 +31,20 @@ function User:dto()
 	}
 end
 
+function User:pushSelf()
+	self.peer._set("user", self:dto())
+end
+
 function User:pushRoom(room)
 	self.peer._set("room", room)
+end
+
+function User:pushRooms(rooms)
+	self.peer._set("rooms", rooms)
+end
+
+function User:pushUsers(users)
+	self.peer._set("users", users)
 end
 
 function User:pushRoomUsers(users)
