@@ -36,7 +36,7 @@ end
 
 local function addUser(peer, user_id, user_name)
 	local user = User()
-	user.id = user_id
+	user.id = ("%s/%s"):format(user_id, peer.id)
 	user.peer = peer
 	user.name = user_name
 	peer_users[peer.id] = user
