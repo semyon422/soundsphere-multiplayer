@@ -9,7 +9,7 @@ Room.isFreeNotechart = false
 Room.isPlaying = false
 Room.id = nil
 Room.name = nil
-Room.hostPeerId = nil
+Room.host_user_id = nil
 
 function Room:new()
 	self.password = ""
@@ -22,7 +22,7 @@ function Room:dto()
 	return {
 		id = self.id,
 		name = self.name,
-		hostPeerId = self.hostPeerId,
+		host_user_id = self.host_user_id,
 		isFreeModifiers = self.isFreeModifiers,
 		isFreeNotechart = self.isFreeNotechart,
 		isPlaying = self.isPlaying,
@@ -32,7 +32,7 @@ end
 function Room:push()
 	local dto = self:dto()
 	for _, u in pairs(self.users) do
-		u.peer._set("room", dto)
+		u:pushRoom(dto)
 	end
 end
 
@@ -42,7 +42,7 @@ function Room:pushUsers()
 		dtos[i] = user:dto()
 	end
 	for _, u in pairs(self.users) do
-		u.peer._set("roomUsers", dtos)
+		u:pushRoomUsers(dtos)
 	end
 end
 
@@ -56,33 +56,33 @@ end
 function Room:pushModifiers()
 	self:unreadyUsers()
 	for _, u in pairs(self.users) do
-		u.peer._set("modifiers", self.modifiers)
+		u:pushModifiers(self.modifiers)
 	end
 end
 
 function Room:pushNotechart()
 	self:unreadyUsers()
 	for _, u in pairs(self.users) do
-		u.peer._set("notechart", self.notechart)
+		u:pushNotechart(self.notechart)
 	end
 end
 
 function Room:pushMessage(message)
 	for _, u in pairs(self.users) do
-		u.peer._addMessage(message)
+		u:addMessage(message)
 	end
 end
 
 function Room:startMatch()
 	self:unreadyUsers()
 	for _, u in pairs(self.users) do
-		u.peer._startMatch()
+		u:startMatch()
 	end
 end
 
 function Room:stopMatch()
 	for _, u in pairs(self.users) do
-		u.peer._stopMatch()
+		u:stopMatch()
 	end
 end
 

@@ -31,4 +31,32 @@ function User:dto()
 	}
 end
 
+function User:pushRoom(room)
+	self.peer._set("room", room)
+end
+
+function User:pushRoomUsers(users)
+	self.peer._set("roomUsers", users)
+end
+
+function User:pushModifiers(modifiers)
+	self.peer._set("modifiers", modifiers)
+end
+
+function User:pushNotechart(notechart)
+	self.peer._set("notechart", notechart)
+end
+
+function User:addMessage(message)
+	self.peer._addMessage(message)
+end
+
+function User:startMatch()
+	self.peer._startMatch()
+end
+
+function User:stopMatch()
+	self.peer._stopMatch()
+end
+
 return User

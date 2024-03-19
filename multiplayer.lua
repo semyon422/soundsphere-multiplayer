@@ -39,7 +39,8 @@ end
 
 local function isHost(peer)
 	local room = peerRooms[peer.id]
-	if not room or room.hostPeerId ~= peer.id then
+	local user = peerUsers[peer.id]
+	if not room or room.host_user_id ~= user.id then
 		return false
 	end
 	return true
@@ -216,7 +217,7 @@ function handlers.createRoom(peer, name, password)
 	room.password = password
 	room.id = roomIdCounter
 	room.name = name
-	room.hostPeerId = peer.id
+	room.host_user_id = user.id
 
 	room:pushUsers()
 	pushRooms()
@@ -262,8 +263,9 @@ function handlers.leaveRoom(peer)
 		return true
 	end
 
-	if room.hostPeerId == peer.id then
-		room.hostPeerId = room.users[1].peerId
+	local user = peerUsers[peer.id]
+	if room.host_user_id == user.id then
+		room.host_user_id = room.users[1].id
 	end
 	room:push()
 	room:pushUsers()
@@ -375,7 +377,7 @@ function handlers.setNotechart(peer, notechart)
 	room:pushNotechart()
 end
 
-function handlers.setHost(peer, peerId)
+function handlers.setHost(peer, user_id)
 	local room = peerRooms[peer.id]
 	if not room or not isHost(peer) then
 		return
@@ -383,7 +385,7 @@ function handlers.setHost(peer, peerId)
 
 	local user
 	for _, u in pairs(room.users) do
-		if u.peerId == peerId then
+		if u.id == user_id then
 			user = u
 			break
 		end
@@ -392,21 +394,21 @@ function handlers.setHost(peer, peerId)
 		return
 	end
 
-	room.hostPeerId = user.peerId
+	room.host_user_id = user.id
 	room:push()
 end
 
-function handlers.kickUser(peer, peerId)
+function handlers.kickUser(peer, user_id)
 	local room = peerRooms[peer.id]
-	if not room or not isHost(peer) or peer.id == peerId then
+	local user = peerUsers[peer.id]
+	if not room or not isHost(peer) or user.id == user_id then
 		return
 	end
 
-	local kickedPeer = peers[peerId]
-	util.delete(room.users, peerUsers[peerId])
-	peerRooms[peerId] = nil
+	util.delete(room.users, user)
+	peerRooms[peer.id] = nil
 
-	kickedPeer._set("room", nil)
+	user:pushRoom(nil)
 	room:pushUsers()
 end
 
