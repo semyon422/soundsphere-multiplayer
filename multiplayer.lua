@@ -1,6 +1,7 @@
 local util = require("util")
 local config = require("config")
 local Room = require("Room")
+local User = require("User")
 
 local multiplayer = {
 	handlers = {},
@@ -17,18 +18,22 @@ local peerUsers = {}
 local peerRooms = {}
 
 local function pushRooms()
+	local dtos = {}
+	for i, room in ipairs(rooms) do
+		dtos[i] = room:dto()
+	end
 	for _, p in pairs(peers) do
-		local dtos = {}
-		for i, room in ipairs(rooms) do
-			dtos[i] = room:dto()
-		end
 		p._set("rooms", dtos)
 	end
 end
 
 local function pushUsers()
+	local dtos = {}
+	for i, user in ipairs(users) do
+		dtos[i] = user:dto()
+	end
 	for _, p in pairs(peers) do
-		p._set("users", users)
+		p._set("users", dtos)
 	end
 end
 
@@ -41,21 +46,14 @@ local function isHost(peer)
 end
 
 local function addUser(peer, user_id, user_name)
-	local user = {
-		id = user_id,
-		peerId = peer.id,
-		name = user_name,
-		isReady = false,
-		isNotechartFound = false,
-		isPlaying = false,
-		score = {},
-		modifiers = {},
-		notechart = {},
-	}
+	local user = User()
+	user.id = user_id
+	user.peer = peer
+	user.name = user_name
 	peerUsers[peer.id] = user
 	table.insert(users, user)
 
-	peer._set("user", user)
+	peer._set("user", user:dto())
 	pushUsers()
 	pushRooms()
 end
@@ -116,7 +114,7 @@ end
 
 function handlers.getRooms() return rooms end
 function handlers.getUsers() return users end
-function handlers.getUser(peer) return peerUsers[peer.id] end
+function handlers.getUser(peer) return peerUsers[peer.id]:dto() end
 function handlers.getRoom(peer) return peerRooms[peer.id]:dto() end
 
 function handlers.login(peer)
@@ -146,10 +144,7 @@ function handlers.startMatch(peer)
 	if not room or room.isPlaying or not isHost(peer) then
 		return
 	end
-	room:unreadyUsers()
-	for _, p in pairs(room.peers) do
-		p._startMatch()
-	end
+	room:startMatch()
 end
 
 function handlers.stopMatch(peer)
@@ -157,9 +152,7 @@ function handlers.stopMatch(peer)
 	if not room or not room.isPlaying or not isHost(peer) then
 		return
 	end
-	for _, p in pairs(room.peers) do
-		p._stopMatch()
-	end
+	room:stopMatch()
 end
 
 function handlers.switchReady(peer)
@@ -169,7 +162,7 @@ function handlers.switchReady(peer)
 	end
 	local user = peerUsers[peer.id]
 	user.isReady = not user.isReady
-	peer._set("user", user)
+	peer._set("user", user:dto())
 	room:pushUsers()
 end
 
@@ -180,7 +173,7 @@ function handlers.setNotechartFound(peer, value)
 		return
 	end
 	user.isNotechartFound = value
-	peer._set("user", user)
+	peer._set("user", user:dto())
 	room:pushUsers()
 end
 
@@ -190,7 +183,7 @@ function handlers.setIsPlaying(peer, value)
 		return
 	end
 	user.isPlaying = value
-	peer._set("user", user)
+	peer._set("user", user:dto())
 
 	local room = peerRooms[peer.id]
 	if room then
@@ -220,7 +213,6 @@ function handlers.createRoom(peer, name, password)
 	table.insert(rooms, room)
 
 	table.insert(room.users, user)
-	table.insert(room.peers, peer)
 	room.password = password
 	room.id = roomIdCounter
 	room.name = name
@@ -244,7 +236,6 @@ function handlers.joinRoom(peer, roomId, password)
 
 	peerRooms[peer.id] = room
 	table.insert(room.users, peerUsers[peer.id])
-	table.insert(room.peers, peer)
 	room:pushUsers()
 
 	if not room.isFreeNotechart then
@@ -263,7 +254,6 @@ function handlers.leaveRoom(peer)
 		return
 	end
 	util.delete(room.users, peerUsers[peer.id])
-	util.delete(room.peers, peer)
 	peerRooms[peer.id] = nil
 
 	if #room.users == 0 then
@@ -286,7 +276,11 @@ function handlers.getRoomUsers(peer)
 	if not room then
 		return
 	end
-	return room.users
+	local dtos = {}
+	for i, user in ipairs(room.users) do
+		dtos[i] = user:dto()
+	end
+	return dtos
 end
 
 function handlers.getRoomModifiers(peer)
@@ -410,7 +404,6 @@ function handlers.kickUser(peer, peerId)
 
 	local kickedPeer = peers[peerId]
 	util.delete(room.users, peerUsers[peerId])
-	util.delete(room.peers, kickedPeer)
 	peerRooms[peerId] = nil
 
 	kickedPeer._set("room", nil)
@@ -423,10 +416,7 @@ function handlers.sendMessage(peer, message)
 	if not room or not user then
 		return
 	end
-
-	message = user.name .. ": " .. tostring(message)
-
-	room:pushMessage(message)
+	room:pushMessage(user.name .. ": " .. tostring(message))
 end
 
 return multiplayer
