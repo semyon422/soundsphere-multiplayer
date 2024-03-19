@@ -1,4 +1,5 @@
 local class = require("class")
+local table_util = require("table_util")
 
 ---@class multiplayer.Room
 ---@operator call: multiplayer.Room
@@ -27,6 +28,77 @@ function Room:dto()
 		isFreeNotechart = self.isFreeNotechart,
 		isPlaying = self.isPlaying,
 	}
+end
+
+local function _user_id(u) return u.id end
+
+function Room:findUser(user_id)
+	return table_util.indexof(self.users, user_id, _user_id)
+end
+
+function Room:setHost(user_id)
+	if not self:findUser(user_id) then
+		return
+	end
+	self.host_user_id = user_id
+	self:push()
+end
+
+function Room:kickUser(user_id)
+	local index = self:findUser(user_id)
+	if not index then
+		return
+	end
+	local user = table.remove(self.users, index)
+	user.room = nil
+	user:pushRoom(nil)
+	self:pushUsers()
+end
+
+function Room:addUser(user)
+	user.room = self
+	table.insert(self.users, user)
+	self:pushUsers()
+	if not self.isFreeNotechart then
+		user:pushNotechart(self.notechart)
+	end
+	if not self.isFreeModifiers then
+		user:pushModifiers(self.modifiers)
+	end
+end
+
+function Room:setNotechart(notechart)
+	self.notechart = notechart
+	if self.isFreeNotechart then
+		return
+	end
+	self:pushNotechart()
+end
+
+function Room:setModifiers(modifiers)
+	self.modifiers = modifiers
+	if self.isFreeModifiers then
+		return
+	end
+	self:pushModifiers()
+end
+
+function Room:setFreeNotechart(isFreeNotechart)
+	self.isFreeNotechart = isFreeNotechart
+	self:push()
+	if isFreeNotechart then
+		return
+	end
+	self:pushNotechart()
+end
+
+function Room:setFreeModifiers(isFreeModifiers)
+	self.isFreeModifiers = isFreeModifiers
+	self:push()
+	if isFreeModifiers then
+		return
+	end
+	self:pushModifiers()
 end
 
 function Room:push()

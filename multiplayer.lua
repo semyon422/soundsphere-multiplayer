@@ -14,8 +14,6 @@ local users = {}
 local peer_by_key = {}
 local peer_users = {}
 
-local user_rooms = {}
-
 local function pushRooms()
 	local dtos = {}
 	for i, room in ipairs(rooms) do
@@ -34,14 +32,6 @@ local function pushUsers()
 	for _, u in pairs(users) do
 		u:pushUsers(dtos)
 	end
-end
-
-local function isHost(user)
-	local room = user_rooms[user.id]
-	if not room or room.host_user_id ~= user.id then
-		return false
-	end
-	return true
 end
 
 local function addUser(peer, user_id, user_name)
@@ -113,7 +103,7 @@ function handlers.getUsers() return users end
 function handlers.getUser(peer) return peer_users[peer.id]:dto() end
 function handlers.getRoom(peer)
 	local user = peer_users[peer.id]
-	return user_rooms[user.id]:dto()
+	return user.room:dto()
 end
 
 function handlers.login(peer)
@@ -140,8 +130,8 @@ end
 
 function handlers.startMatch(peer)
 	local user = peer_users[peer.id]
-	local room = user_rooms[user.id]
-	if not room or room.isPlaying or not isHost(user) then
+	local room = user.room
+	if not room or room.isPlaying or not user:isHost() then
 		return
 	end
 	room:startMatch()
@@ -149,8 +139,8 @@ end
 
 function handlers.stopMatch(peer)
 	local user = peer_users[peer.id]
-	local room = user_rooms[user.id]
-	if not room or not room.isPlaying or not isHost(user) then
+	local room = user.room
+	if not room or not room.isPlaying or not user:isHost() then
 		return
 	end
 	room:stopMatch()
@@ -158,24 +148,19 @@ end
 
 function handlers.switchReady(peer)
 	local user = peer_users[peer.id]
-	local room = user_rooms[user.id]
+	local room = user.room
 	if not room then
 		return
 	end
-	user.isReady = not user.isReady
-	user:pushSelf()
-	room:pushUsers()
+	user:switchReady()
 end
 
 function handlers.setNotechartFound(peer, value)
 	local user = peer_users[peer.id]
-	local room = user_rooms[user.id]
-	if not user or not room then
+	if not user then
 		return
 	end
-	user.isNotechartFound = value
-	user:pushSelf()
-	room:pushUsers()
+	user:setNotechartFound(value)
 end
 
 function handlers.setIsPlaying(peer, value)
@@ -183,13 +168,7 @@ function handlers.setIsPlaying(peer, value)
 	if not user then
 		return
 	end
-	user.isPlaying = value
-	user:pushSelf()
-
-	local room = user_rooms[user.id]
-	if room then
-		room:pushUsers()
-	end
+	user:setPlaying(value)
 end
 
 function handlers.setScore(peer, score)
@@ -203,13 +182,13 @@ end
 local roomIdCounter = 0
 function handlers.createRoom(peer, name, password)
 	local user = peer_users[peer.id]
-	if user_rooms[user.id] then
+	if user.room then
 		return
 	end
 
 	roomIdCounter = roomIdCounter + 1
 	local room = Room()
-	user_rooms[user.id] = room
+	user.room = room
 	table.insert(rooms, room)
 
 	table.insert(room.users, user)
@@ -227,36 +206,20 @@ end
 function handlers.joinRoom(peer, roomId, password)
 	local room = rooms[util.indexofid(rooms, roomId)]
 	local user = peer_users[peer.id]
-	if not room or user_rooms[user.id] then
+	if not room or user.room or room.password ~= password then
 		return
 	end
-
-	if room.password ~= password then
-		return
-	end
-
-	user_rooms[user.id] = room
-	table.insert(room.users, user)
-	room:pushUsers()
-
-	if not room.isFreeNotechart then
-		user:pushNotechart(room.notechart)
-	end
-	if not room.isFreeModifiers then
-		user:pushModifiers(room.modifiers)
-	end
-
-	return room
+	room:addUser(user)
+	return room:dto()
 end
 
 function handlers.leaveRoom(peer)
 	local user = peer_users[peer.id]
-	local room = user_rooms[user.id]
+	local room = user.room
 	if not room then
 		return
 	end
-	util.delete(room.users, user)
-	user_rooms[user.id] = nil
+	room:kickUser(user.id)
 
 	if #room.users == 0 then
 		util.delete(rooms, room)
@@ -265,17 +228,15 @@ function handlers.leaveRoom(peer)
 	end
 
 	if room.host_user_id == user.id then
-		room.host_user_id = room.users[1].id
+		room:setHost(room.users[1].id)
 	end
-	room:push()
-	room:pushUsers()
 
 	return true
 end
 
 function handlers.getRoomUsers(peer)
 	local user = peer_users[peer.id]
-	local room = user_rooms[user.id]
+	local room = user.room
 	if not room then
 		return
 	end
@@ -288,7 +249,7 @@ end
 
 function handlers.getRoomModifiers(peer)
 	local user = peer_users[peer.id]
-	local room = user_rooms[user.id]
+	local room = user.room
 	if not room then
 		return
 	end
@@ -297,7 +258,7 @@ end
 
 function handlers.getRoomNotechart(peer)
 	local user = peer_users[peer.id]
-	local room = user_rooms[user.id]
+	local room = user.room
 	if not room then
 		return
 	end
@@ -306,125 +267,90 @@ end
 
 function handlers.setFreeModifiers(peer, isFreeModifiers)
 	local user = peer_users[peer.id]
-	local room = user_rooms[user.id]
-	if not room or not isHost(user) then
+	local room = user.room
+	if not room or not user:isHost() then
 		return
 	end
-	room.isFreeModifiers = isFreeModifiers
-	room:push()
-
-	if isFreeModifiers then
-		return
-	end
-	room:pushModifiers()
+	room:setFreeModifiers(isFreeModifiers)
 end
 
 function handlers.setFreeNotechart(peer, isFreeNotechart)
 	local user = peer_users[peer.id]
-	local room = user_rooms[user.id]
-	if not room or not isHost(user) then
+	local room = user.room
+	if not room or not user:isHost() then
 		return
 	end
-	room.isFreeNotechart = isFreeNotechart
-	room:push()
-
-	if isFreeNotechart then
-		return
-	end
-	room:pushNotechart()
+	room:setFreeNotechart(isFreeNotechart)
 end
 
 function handlers.setModifiers(peer, modifiers)
+	handlers.setUserModifiers(peer, modifiers)
+	handlers.setRoomModifiers(peer, modifiers)
+end
+
+function handlers.setUserModifiers(peer, modifiers)
 	local user = peer_users[peer.id]
 	if not user then
 		return
 	end
-	user.modifiers = modifiers
+	user:setModifiers(modifiers)
+end
 
-	local room = user_rooms[user.id]
-	if not room then
+function handlers.setRoomModifiers(peer, modifiers)
+	local user = peer_users[peer.id]
+	local room = user.room
+	if not room or not user:isHost() then
 		return
 	end
-	room:pushUsers()
-
-	if not isHost(user) then
-		return
-	end
-	room.modifiers = modifiers
-
-	if room.isFreeModifiers then
-		return
-	end
-	room:pushModifiers()
+	room:setModifiers(modifiers)
 end
 
 function handlers.setNotechart(peer, notechart)
+	handlers.setUserNotechart(peer, notechart)
+	handlers.setRoomNotechart(peer, notechart)
+end
+
+function handlers.setUserNotechart(peer, notechart)
 	local user = peer_users[peer.id]
 	if not user then
 		return
 	end
-	user.notechart = notechart
+	user:setNotechart(notechart)
+end
 
-	local room = user_rooms[user.id]
-	if not room then
+function handlers.setRoomNotechart(peer, notechart)
+	local user = peer_users[peer.id]
+	local room = user.room
+	if not room or not user:isHost() then
 		return
 	end
-	room:pushUsers()
-
-	if not isHost(user) then
-		return
-	end
-	room.notechart = notechart
-
-	if room.isFreeNotechart then
-		return
-	end
-	room:pushNotechart()
+	room:setNotechart(notechart)
 end
 
 function handlers.setHost(peer, user_id)
 	local user = peer_users[peer.id]
-	local room = user_rooms[user.id]
-	if not room or not isHost(user) then
+	local room = user.room
+	if not room or not user:isHost() then
 		return
 	end
-
-	local user
-	for _, u in pairs(room.users) do
-		if u.id == user_id then
-			user = u
-			break
-		end
-	end
-	if not user then
-		return
-	end
-
-	room.host_user_id = user.id
-	room:push()
+	room:setHost(user_id)
 end
 
 function handlers.kickUser(peer, user_id)
 	local user = peer_users[peer.id]
-	local room = user_rooms[user.id]
-	if not room or not isHost(user) or user.id == user_id then
+	local room = user.room
+	if not room or not user:isHost() or user.id == user_id then
 		return
 	end
-
-	util.delete(room.users, user)
-	user_rooms[user.id] = nil
-
-	user:pushRoom(nil)
-	room:pushUsers()
+	room:kickUser(user_id)
 end
 
 function handlers.sendMessage(peer, message)
 	local user = peer_users[peer.id]
-	local room = user_rooms[user.id]
-	if not room or not user then
+	if not user then
 		return
 	end
-	room:pushMessage(user.name .. ": " .. tostring(message))
+	user:sendMessage(message)
 end
 
 return multiplayer

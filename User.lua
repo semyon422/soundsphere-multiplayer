@@ -10,6 +10,7 @@ User.name = nil
 User.isReady = false
 User.isNotechartFound = false
 User.isPlaying = false
+User.room = nil
 
 function User:new()
 	self.score = {}
@@ -20,7 +21,6 @@ end
 function User:dto()
 	return {
 		id = self.id,
-		peerId = self.peer.id,
 		name = self.name,
 		isReady = self.isReady,
 		isNotechartFound = self.isNotechartFound,
@@ -29,6 +29,43 @@ function User:dto()
 		modifiers = self.modifiers,
 		notechart = self.notechart,
 	}
+end
+
+function User:isHost()
+	local room = self.room
+	return room and room.host_user_id == self.id
+end
+
+function User:sendMessage(message)
+	self.room:pushMessage(("%s: %s"):format(self.name, message))
+end
+
+function User:setNotechart(notechart)
+	self.notechart = notechart
+	self.room:pushUsers()
+end
+
+function User:setModifiers(modifiers)
+	self.modifiers = modifiers
+	self.room:pushUsers()
+end
+
+function User:setPlaying(value)
+	self.isPlaying = value
+	self:pushSelf()
+	self.room:pushUsers()
+end
+
+function User:setNotechartFound(value)
+	self.isNotechartFound = value
+	self:pushSelf()
+	self.room:pushUsers()
+end
+
+function User:switchReady()
+	self.isReady = not self.isReady
+	self:pushSelf()
+	self:pushUsers()
 end
 
 function User:pushSelf()
