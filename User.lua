@@ -27,6 +27,8 @@ function User:dto()
 		isPlaying = self.isPlaying,
 		score = self.score,
 		modifiers = self.modifiers,
+		const = self.const,
+		rate = self.rate,
 		notechart = self.notechart,
 	}
 end
@@ -42,30 +44,40 @@ end
 
 function User:setNotechart(notechart)
 	self.notechart = notechart
-	self.room:pushUsers()
+	self.room:push()
 end
 
 function User:setModifiers(modifiers)
 	self.modifiers = modifiers
-	self.room:pushUsers()
+	self.room:push()
+end
+
+function User:setConst(const)
+	self.const = const
+	self.room:push()
+end
+
+function User:setRate(rate)
+	self.rate = rate
+	self.room:push()
 end
 
 function User:setPlaying(value)
 	self.isPlaying = value
 	self:pushSelf()
-	self.room:pushUsers()
+	self.room:push()
 end
 
 function User:setNotechartFound(value)
 	self.isNotechartFound = value
 	self:pushSelf()
-	self.room:pushUsers()
+	self.room:push()
 end
 
 function User:switchReady()
 	self.isReady = not self.isReady
 	self:pushSelf()
-	self:pushUsers()
+	self.room:push()
 end
 
 function User:setScore(score)
@@ -76,8 +88,8 @@ function User:pushSelf()
 	self.peer._set("user", self:dto())
 end
 
-function User:pushRoom(room)
-	self.peer._set("room", room)
+function User:pushRoom()
+	self.peer._set("room", self.room:dto())
 end
 
 function User:pushRooms(rooms)
@@ -86,18 +98,6 @@ end
 
 function User:pushUsers(users)
 	self.peer._set("users", users)
-end
-
-function User:pushRoomUsers(users)
-	self.peer._set("roomUsers", users)
-end
-
-function User:pushModifiers(modifiers)
-	self.peer._set("modifiers", modifiers)
-end
-
-function User:pushNotechart(notechart)
-	self.peer._set("notechart", notechart)
 end
 
 function User:addMessage(message)

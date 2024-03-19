@@ -112,7 +112,7 @@ function handlers.getUsers() return users end
 function handlers.getUser(peer) return peer_users[peer.id]:dto() end
 function handlers.getRoom(peer)
 	local user = peer_users[peer.id]
-	return user.room:dto()
+	return user.room and user.room:dto()
 end
 
 function handlers.login(peer)
@@ -146,16 +146,14 @@ function handlers.createRoom(peer, name, password)
 
 	roomIdCounter = roomIdCounter + 1
 	local room = Room()
-	user.room = room
 	table.insert(rooms, room)
 
-	table.insert(room.users, user)
 	room.password = password
 	room.id = roomIdCounter
 	room.name = name
 	room.host_user_id = user.id
 
-	room:pushUsers()
+	room:addUser(user)
 	pushRooms()
 
 	return room:dto()
@@ -181,9 +179,19 @@ function handlers.leaveRoom(peer)
 	room:kickUser(user.id)
 end
 
-function handlers.setModifiers(peer, modifiers)
-	handlers.setUserModifiers(peer, modifiers)
-	handlers.setRoomModifiers(peer, modifiers)
+function handlers.setModifiers(...)
+	handlers.setUserModifiers(...)
+	handlers.setRoomModifiers(...)
+end
+
+function handlers.setConst(...)
+	handlers.setUserConst(...)
+	handlers.setRoomConst(...)
+end
+
+function handlers.setRate(...)
+	handlers.setUserRate(...)
+	handlers.setRoomRate(...)
 end
 
 function handlers.setNotechart(peer, notechart)
@@ -208,23 +216,34 @@ local function create_handler(resource, method, rules)
 	end
 end
 
+-- user
+
 handlers.setScore = create_handler("user", "setScore", {})
-handlers.getRoomUsers = create_handler("room", "getUsers", {})
-handlers.getRoomNotechart = create_handler("room", "getNotechart", {})
-handlers.getRoomModifiers = create_handler("room", "getModifiers", {})
-handlers.startMatch = create_handler("user", "startMatch", {host = true})
-handlers.stopMatch = create_handler("user", "stopMatch", {host = true})
 handlers.switchReady = create_handler("user", "switchReady", {})
 handlers.setNotechartFound = create_handler("user", "setNotechartFound", {})
 handlers.setIsPlaying = create_handler("user", "setPlaying", {})
-handlers.setFreeModifiers = create_handler("room", "setFreeModifiers", {host = true})
-handlers.setFreeNotechart = create_handler("room", "setFreeNotechart", {host = true})
+
 handlers.setUserModifiers = create_handler("user", "setModifiers", {})
-handlers.setRoomModifiers = create_handler("room", "setModifiers", {host = true})
+handlers.setUserConst = create_handler("user", "setConst", {})
+handlers.setUserRate = create_handler("user", "setRate", {})
 handlers.setUserNotechart = create_handler("user", "setNotechart", {})
+
+handlers.sendMessage = create_handler("user", "sendMessage", {})
+
+-- room
+
+handlers.setFreeModifiers = create_handler("room", "setFreeModifiers", {host = true})
+handlers.setFreeRate = create_handler("room", "setFreeRate", {host = true})
+handlers.setFreeConst = create_handler("room", "setFreeConst", {host = true})
+handlers.setFreeNotechart = create_handler("room", "setFreeNotechart", {host = true})
+handlers.setRoomModifiers = create_handler("room", "setModifiers", {host = true})
+handlers.setRoomRate = create_handler("room", "setRate", {host = true})
+handlers.setRoomConst = create_handler("room", "setConst", {host = true})
 handlers.setRoomNotechart = create_handler("room", "setNotechart", {host = true})
+
 handlers.setHost = create_handler("room", "setHost", {host = true})
 handlers.kickUser = create_handler("room", "kickUser", {host = true})
-handlers.sendMessage = create_handler("user", "sendMessage", {})
+handlers.startMatch = create_handler("room", "startMatch", {host = true})
+handlers.stopMatch = create_handler("room", "stopMatch", {host = true})
 
 return multiplayer
