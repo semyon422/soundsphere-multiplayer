@@ -68,6 +68,10 @@ function User:switchReady()
 	self:pushUsers()
 end
 
+function User:setScore(score)
+	self.score = score
+end
+
 function User:pushSelf()
 	self.peer._set("user", self:dto())
 end

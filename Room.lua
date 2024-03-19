@@ -30,6 +30,22 @@ function Room:dto()
 	}
 end
 
+function Room:getModifiers()
+	return self.modifiers
+end
+
+function Room:getNotechart()
+	return self.notechart
+end
+
+function Room:getUsers()
+	local dtos = {}
+	for i, user in ipairs(self.users) do
+		dtos[i] = user:dto()
+	end
+	return dtos
+end
+
 local function _user_id(u) return u.id end
 
 function Room:findUser(user_id)
@@ -53,6 +69,9 @@ function Room:kickUser(user_id)
 	user.room = nil
 	user:pushRoom(nil)
 	self:pushUsers()
+	if self.host_user_id == user_id and self.users[1] then
+		self:setHost(self.users[1].id)
+	end
 end
 
 function Room:addUser(user)

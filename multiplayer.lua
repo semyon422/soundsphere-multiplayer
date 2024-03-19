@@ -1,4 +1,4 @@
-local util = require("util")
+local table_util = require("table_util")
 local config = require("config")
 local Room = require("Room")
 local User = require("User")
@@ -57,7 +57,8 @@ function multiplayer.peerdisconnected(peer)
 
 	handlers.leaveRoom(peer)
 
-	util.delete(users, peer_users[id])
+	local index = table_util.indexof(users, peer_users[id])
+	table.remove(users, index)
 	pushUsers()
 
 	peer_users[id] = nil
@@ -65,7 +66,8 @@ end
 
 function multiplayer.update()
 	local needPushRooms = false
-	for _, room in pairs(rooms) do
+	local deleteRoomIndex = nil
+	for i, room in pairs(rooms) do
 		local isPlaying = false
 		for _, user in pairs(room.users) do
 			if user.isPlaying then
@@ -78,6 +80,13 @@ function multiplayer.update()
 			needPushRooms = true
 			room:push()
 		end
+		if #room.users == 0 then
+			deleteRoomIndex = i
+			needPushRooms = true
+		end
+	end
+	if deleteRoomIndex then
+		table.remove(rooms, deleteRoomIndex)
 	end
 	if needPushRooms then
 		pushRooms()
@@ -128,14 +137,6 @@ function handlers.loginOffline(peer, user_id, user_name)
 	addUser(peer, user_id, user_name)
 end
 
-function handlers.setScore(peer, score)
-	local user = peer_users[peer.id]
-	if not user then
-		return
-	end
-	user.score = score
-end
-
 local roomIdCounter = 0
 function handlers.createRoom(peer, name, password)
 	local user = peer_users[peer.id]
@@ -161,7 +162,8 @@ function handlers.createRoom(peer, name, password)
 end
 
 function handlers.joinRoom(peer, roomId, password)
-	local room = rooms[util.indexofid(rooms, roomId)]
+	local index = table_util.indexof(rooms, roomId, function(r) return r.id end)
+	local room = rooms[index]
 	local user = peer_users[peer.id]
 	if not room or user.room or room.password ~= password then
 		return
@@ -177,49 +179,6 @@ function handlers.leaveRoom(peer)
 		return
 	end
 	room:kickUser(user.id)
-
-	if #room.users == 0 then
-		util.delete(rooms, room)
-		pushRooms()
-		return true
-	end
-
-	if room.host_user_id == user.id then
-		room:setHost(room.users[1].id)
-	end
-
-	return true
-end
-
-function handlers.getRoomUsers(peer)
-	local user = peer_users[peer.id]
-	local room = user.room
-	if not room then
-		return
-	end
-	local dtos = {}
-	for i, user in ipairs(room.users) do
-		dtos[i] = user:dto()
-	end
-	return dtos
-end
-
-function handlers.getRoomModifiers(peer)
-	local user = peer_users[peer.id]
-	local room = user.room
-	if not room then
-		return
-	end
-	return room.modifiers
-end
-
-function handlers.getRoomNotechart(peer)
-	local user = peer_users[peer.id]
-	local room = user.room
-	if not room then
-		return
-	end
-	return room.notechart
 end
 
 function handlers.setModifiers(peer, modifiers)
@@ -245,10 +204,14 @@ local function create_handler(resource, method, rules)
 		if resource == "room" then
 			res = user.room
 		end
-		res[method](res, ...)
+		return res[method](res, ...)
 	end
 end
 
+handlers.setScore = create_handler("user", "setScore", {})
+handlers.getRoomUsers = create_handler("room", "getUsers", {})
+handlers.getRoomNotechart = create_handler("room", "getNotechart", {})
+handlers.getRoomModifiers = create_handler("room", "getModifiers", {})
 handlers.startMatch = create_handler("user", "startMatch", {host = true})
 handlers.stopMatch = create_handler("user", "stopMatch", {host = true})
 handlers.switchReady = create_handler("user", "switchReady", {})
