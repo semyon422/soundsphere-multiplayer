@@ -172,6 +172,9 @@ end
 
 function handlers.leaveRoom(peer)
 	local user = peer_users[peer.id]
+	if not user then
+		return
+	end
 	local room = user.room
 	if not room then
 		return
