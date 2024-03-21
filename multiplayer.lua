@@ -205,7 +205,7 @@ end
 local function create_handler(resource, method, rules)
 	return function(peer, ...)
 		local user = peer_users[peer.id]
-		if not user.room then
+		if not user or not user.room then
 			return
 		end
 		if rules.host and not user:isHost() then
