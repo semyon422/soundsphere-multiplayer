@@ -140,7 +140,7 @@ end
 local roomIdCounter = 0
 function handlers.createRoom(peer, name, password)
 	local user = peer_users[peer.id]
-	if user.room then
+	if not user or user.room then
 		return
 	end
 
